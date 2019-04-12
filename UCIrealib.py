@@ -9,7 +9,8 @@ __init__.py
 ## Everything was done for the pupose of education.
 ## All information is public and not classified!
 ## Feel free to use as will, a thank you would be nice!
-## Colaborators: Alex Schein, Tejas Dethe, Luis Nava-Navarro
+## Colaborators: Alexander Schein, Tejas Dethe, Luis Nava-Navarro
+## Github: (https://github.com/lnavanav/UCI-JPL-Project)
 
 from netCDF4 import Dataset, num2date
 import numpy as np
