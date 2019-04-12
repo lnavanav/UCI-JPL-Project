@@ -72,30 +72,80 @@ def get_lfloc_dates(lfloc):
 
 
 ##################################################################################################################
+## Definition: get_lfloc_dates
+##  * We want to be able to know when landfall was made, not too
+##    worried about where.
+## Arguments: lfloc - The land fall locations
+## Returns: t_list - a list of dates when landfall occured
+## Notes:
+##################################################################################################################
+def build_land_mask(is_land, is_coast):
+    temp_mask = ~is_land.mask
+    lat, lon = np.shape(is_land)    #is_land and is_coast overlap, so ~is_land and is_coast don't.
+    for i in range(lat):            #need to build a mask that allows us to plot over the ocean and the coasts but NOT the land.
+        for j in range(lon):
+            if is_coast[i,j] == 1:
+                temp_mask[i,j] = False    #NOTE: "false" allows more of the ocean/coast region to be plotted. If "true" then it's just is_land.mask.
+    return temp_mask
+
+
+
+##################################################################################################################
 ## Definition: plot_local_contour_map
 ##  * Plots wind speed contours over the west coast region of interest
 ## Arguments: data, lon, lat, levels, figureFile, title, cmap
 ## Returns: Nothing. 'void' definition. plt.show the plot contour of local area (Calif.)
-## Notes:
+## Notes: * Added msked boolean in argument, now you are able to selected the plot to be masked or not.
 ##################################################################################################################
-def plot_local_contour_map(data, lon, lat, levels, figure_file='test', title='title', cmap=cm.jet): #added title
+def plot_local_contour_map(data, lon, lat, levels, figure_file='test', title='title', cmap=cm.jet, plot_mask, msked):
     lons, lats = np.meshgrid(lon, lat)
     fig = plt.figure()
     ax = fig.add_subplot(1, 1, 1)
     m = Basemap(ax=ax, projection = 'cyl', llcrnrlat = lat.min(), urcrnrlat = lat.max(),
                 llcrnrlon = lon.min(), urcrnrlon = lon.max(), resolution = 'l', fix_aspect = True)
-                x,y = m(lons, lats)
-                m.drawcoastlines(linewidth=1)
-                m.drawcountries(linewidth=.75)
-                m.drawstates(linewidth=.5)
-                max = m.contourf(x, y, data, levels = levels, extend='both', cmap=cmap)
-                cbar_ax = fig.add_axes([0.85, 0.3, 0.01, 0.4]) #[0.15, 0.25, 0.3, 0.01])
-                cbar_ax.set_xlabel('# of \n days')
-                cb=plt.colorbar(max, cax=cbar_ax)  #orientation = 'horizontal',
-                cb.ax.tick_params(labelsize=8)
-                ax.set_title(title)
-                fig.savefig(figure_file,dpi=600,bbox_inches='tight')
-                plt.show()
+    x,y = m(lons, lats)
+    m.drawcoastlines(linewidth=1)
+    m.drawcountries(linewidth=.75)
+    m.drawstates(linewidth=.5)
+    if msked == True: # If you want to mask, then just pass msked as true.
+        masked_data = ma.array(data, mask=plot_mask)
+    max = m.contourf(x, y, data, levels = levels, extend='both', cmap=cmap)
+    cbar_ax = fig.add_axes([0.85, 0.3, 0.01, 0.4]) #[0.15, 0.25, 0.3, 0.01])
+    cbar_ax.set_xlabel('# of \n days')
+    cb=plt.colorbar(max, cax=cbar_ax)  #orientation = 'horizontal',
+    cb.ax.tick_params(labelsize=8)
+    ax.set_title(title)
+    fig.savefig(figure_file,dpi=600,bbox_inches='tight')
+    plt.show()
+
+
+##################################################################################################################
+## Definition: plot_local_vector_map
+##  * Plots wind speed vectors over the west coast region of interest
+## Arguments: data, lon, lat, levels, figureFile, title, cmap
+## Returns: Nothing. 'void' definition. plt.show the plot contour of local area (Calif.)
+## Notes: * Added msked boolean in argument, now you are able to selected the plot to be masked or not.
+##################################################################################################################
+def plot_local_vector_map(uwind, vwind, lon, lat, figure_file='filename', title='title', yskip=2, xskip=3, plot_mask, msked):
+    lons, lats = np.meshgrid(lon, lat)
+    fig = plt.figure()
+    ax = fig.add_subplot(1, 1, 1)
+    m = Basemap(ax=ax, projection = 'cyl', llcrnrlat = lat.min(), urcrnrlat = lat.max(),
+                llcrnrlon = lon.min(), urcrnrlon = lon.max(), resolution = 'l', fix_aspect = True)
+    x,y = m(lons, lats)
+    m.drawcoastlines(linewidth=1)
+    m.drawcountries(linewidth=.75)
+    m.drawstates(linewidth=.5)
+    ## masking stuff start
+    if msked == True:
+        masked_u = ma.array(uwind, mask=plot_mask)
+        masked_v = ma.array(vwind, mask=plot_mask)
+    ## end
+    N = ma.mean(np.sqrt(uwind[::yskip, ::xskip]**2+vwind[::yskip, ::xskip]**2)) #Obsolete?
+    max = m.quiver(x[::yskip, ::xskip], y[::yskip, ::xskip], uwind[::yskip, ::xskip]/N, vwind[::yskip, ::xskip]/N, color='blue', pivot='middle', headwidth=3)
+    ax.set_title(title)
+    fig.savefig(figure_file,dpi=600,bbox_inches='tight')
+    plt.show()
 
 
 ##################################################################################################################
@@ -133,7 +183,6 @@ return num_of_samples, cloud_top_height #num_samples_and_CTH
 ##          1 km height bin: from 0-1 km to 16-17 km. Intervals are [a,b).
 ##        * binned_avg_num_of_samples - average number of samples for each height bin.
 ##################################################################################################################
-
 def SortSampleSizeIntoHeightBins(samplesize_data, CTH_data):
     binned_sample_size = np.zeros(17) #17 height bins
     binned_num_of_observations = np.zeros(17)
@@ -195,3 +244,13 @@ def SortSampleSizeIntoHeightBins(samplesize_data, CTH_data):
     for j in range(np.shape(binned_sample_size)[0]):
         binned_avg_num_of_samples[j] = binned_sample_size[j]/binned_num_of_observations[j]
     return binned_sample_size, binned_avg_num_of_samples
+
+
+
+
+###################################################################################################################
+## SELF NOTES
+##  * Maybe make the plot local vector/contour definitions into one function instead of two,
+##      - This function would take in the combination of both of the arguments
+##      - Will include an extra arguments that asks the user to imput the particular type of plot thet
+##        would like to see. This ways it will be more effictient and the names will not be as long.
